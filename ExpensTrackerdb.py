@@ -5,7 +5,6 @@ from tkinter import ttk
 from PIL import ImageTk, Image
 from tkinter import messagebox
 
-
 root = Tk()
 root.geometry("500x500")
 root.title("Expense Tracker")
@@ -140,52 +139,53 @@ def remove():
     dbconn.close()
 
 
-
+#function for new window on clicking update record button and retreivingg the selected the record information...
 def select_for_update():
     new_win = Tk()
     new_win.geometry("300x300")
 
     n1 = Label(new_win, text="Date Of Payment (MM/DD/YY)")
-    n1.place(x=34,y=11,width=200,height=24)
-    '''
+    n1.grid(row=0, column=0,padx=8, pady=8)
     n2 = Label(new_win, text="Method Of Payment")
-    n2.place(x=7,y=15,width=100,height=24)
+    n2.grid(row=1, column=0,padx=8, pady=8)
     n3 = Label(new_win, text="Paid To")
-    n3.place(x=9,y=19,width=100,height=24)
+    n3.grid(row=2, column=0,padx=8,pady=8)
     n4 = Label(new_win, text="Description")
-    n4.place(x=11,y=20,width=100,height=24)
+    n4.grid(row=3, column=0,padx=8,pady=8)
     n5 = Label(new_win, text="Amount Paid")
-    n5.place(x=13,y=22,width=100,height=24)
-    '''
-    name_box = IntVar()
-    name_box.set("")
+    n5.grid(row=4, column=0,padx=8,pady=8)
+
+    global name_box1, name_box2, name_box3, name_box4, name_box5
+
     name_box1 = DateEntry(new_win, background='grey', foreground='white', borderwidth=2)
-    name_box1.place(x=10,y=40,width=100,height=24)
-    ''' 
+    name_box1.grid(row=0, column=1,padx=9,pady=8)
     name_box2 = StringVar()
     name_box2.set("CASH")
-    ttk.Combobox(new_win, values=["CARD", "PAYTM", "CHEQUE", "ONLINE TRANSACTION"]).place(x=7,y=11,width=100,height=24)
+    ttk.Combobox(new_win, values=["CARD", "PAYTM", "CHEQUE", "ONLINE TRANSACTION"]).grid(row=1, column=1,padx=9,pady=8)
     name_box3 = Entry(new_win)
-    name_box3.place(x=9,y=11,width=100,height=24)
+    name_box3.grid(row=2, column=1,padx=9,pady=8)
     name_box4 = Entry(new_win)
-    name_box4.place(x=11,y=11,width=100,height=24)
+    name_box4.grid(row=3, column=1,padx=9,pady=8)
+
+    name_box = DoubleVar()
+    #name_box.set("")
     name_box5 = Entry(new_win, textvariable=name_box)
-    name_box5.place(x=13,y=11,width=100,height=24)
-    '''
-    '''
+    name_box5.grid(row=4, column=1,padx=9,pady=8)
+    global name_box5_value
+    name_box5_value = name_box.get()
+
+    update_bt = Button(new_win, text="UPDATE RECORD", font=("Helvetica", 11), command=update1)
+    update_bt.grid(row=6,column=0,columnspan=2,padx=8,pady=9)
+
+
     global p
     global z
     global listv
     listv = []
     m = 0
-    selection = my_tree.focus()
-    name_box1.delete(0, END)
-    # name_box2.delete(0, END)
-    name_box3.delete(0, END)
-    name_box4.delete(0, END)
-    name_box5.delete(0, END)
+    selection = my_tree.focus()    #retrieves ID of selected record...
 
-    values = my_tree.item(selection, 'values')
+    values = my_tree.item(selection, 'values')        #returns a tuple containing values of selected record
     if selection == "":
         messagebox.showwarning("Attention", "You must select atleast one record to perform this action")
     else:
@@ -201,8 +201,49 @@ def select_for_update():
             z = 1
         except(IndexError):
             pass
-    '''
+
     new_win.mainloop()
+
+#update function
+def update1():
+    global p
+    global z
+    global listv
+
+    m = 0
+    selection = my_tree.focus()
+
+    if [name_box1.get(), name_box2.get(), name_box3.get(), name_box4.get(), name_box5.get()] == listv:
+        messagebox.showinfo("Attention", "Seems as if you didn't make any change to the existing record")
+    else:
+        if z == 1 and selection != "":
+            z = 0
+            try:
+                dbconn = sqlite3.connect('Expense_Tracker.db')
+                dbcursor = dbconn.cursor()
+                selection = my_tree.focus()
+                values = my_tree.item(selection, text="", values=(name_box1.get(),
+                                                                name_box2.get(),
+                                                                name_box3.get(),
+                                                                name_box4.get(),
+                                                                name_box5.get()))
+                x = my_tree.selection()
+                for record in x:
+                    dbcursor.execute("UPDATE expenses" +
+                                     "SET Date_Of_Payment = " + str(name_box1.get()) + ", Method_of_Payment = '"+str(name_box2.get())\
+                                     + "' , Paid_To = '"+ str(name_box3.get()) + \
+                                     "' , Description = '" + str(name_box4.get()) + \
+                                     "' , Amount_Paid = " + str(name_box5.get())\
+                    + " WHERE oid = " + str(ltt[(int(record) - 1)])+" ;")
+
+            except(sqlite3.OperationalError):
+                messagebox.showwarning("WARNING!", "Amount Paid must be a number\nPlease Check Again")
+
+        else:
+            messagebox.showwarning("Attention", "Seems You didn't select any record\nPlease Check Again")
+
+
+
 
 def view_expenses(view_record_frame):
     global ltt
