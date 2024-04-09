@@ -5,6 +5,7 @@ from tkinter import ttk
 from PIL import ImageTk, Image
 from tkinter import messagebox
 
+
 root = Tk()
 root.geometry("500x500")
 root.title("Expense Tracker")
