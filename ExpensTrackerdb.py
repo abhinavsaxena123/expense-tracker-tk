@@ -96,14 +96,15 @@ def submit(_list):
             dbcursor = dbconn.cursor()
             dbcursor.execute("""INSERT INTO expenses (Date, Payee, Description, Amount, Mode_Of_Payment)\
                              VALUES (:Date, :Payee, :Description, :Amount, :Mode_Of_Payment)""",
-                             {
+                             (sno,{
                                  'Date': (_list[0]).get(),
                                  'Payee': (_list[3]).get(),
                                  'Description': (_list[1]).get(),
                                  'Amount': float((_list[2].get())),
                                  'Mode_Of_Payment': _list[4].get()
-                                        }
+                                })
                             )
+            '''
             dbconn.commit()
             dbconn.close()
 
@@ -126,12 +127,38 @@ def remove():
     dbconn = sqlite3.connect('Expense_Tracker.db')
     dbcursor = dbconn.cursor()
 
-    x = my_tree.selection()      #get currently selected item...
+    x = my_tree.selection()      #returns tuple of currently selected item...
 
+    for index, record in enumerate(x, start=1):
+        oid = ltt[int(record) - 1]
+        dbcursor.execute("DELETE FROM expenses WHERE oid = ?", (oid,))
+        my_tree.delete(record)
+        ch += 1
+
+    #ltt.clear()  # Clear the list
+    #dbcursor.execute("SELECT oid FROM expenses")
+    #rec = dbcursor.fetchall()
+    #for r in rec:
+    #    ltt.append(r[0])
+
+    for i, oid in enumerate(ltt, start=1):
+        dbcursor.execute("UPDATE expenses SET SNo = ? WHERE oid = ?", (i, oid))
+
+    """
+    if not ltt:  # If ltt list is empty (no records left)
+        dbcursor.execute("UPDATE SQLITE_SEQUENCE SET SEQ=0 WHERE NAME='expenses'")
+    else:
+        dbcursor.execute("UPDATE expenses SET SNo = (SELECT COUNT(*) FROM expenses AS e WHERE e.SNo <= expenses.SNo)")
+    """
+    #dbcursor.execute("UPDATE expenses SET SNo = (SELECT COUNT(*) FROM expenses AS e WHERE e.SNo <= expenses.SNo)")
+
+    """ 
     for record in x:
         dbcursor.execute("DELETE FROM expenses WHERE oid= " + str(ltt[(int(record) - 1)]))
         my_tree.delete(record)
-        ch+=1
+        ch += 1
+    """
+
     if ch == 0:
         messagebox.showwarning("Attention", "You must select atleast one record to perform this action")
 
@@ -141,6 +168,7 @@ def remove():
 
 #function for new window on clicking update record button and retreivingg the selected the record information...
 def select_for_update():
+    global new_win
     new_win = Tk()
     new_win.geometry("300x300")
 
@@ -155,24 +183,24 @@ def select_for_update():
     n5 = Label(new_win, text="Amount Paid")
     n5.grid(row=4, column=0,padx=8,pady=8)
 
-    global name_box1, name_box2, name_box3, name_box4, name_box5
+    global name_box1, combo_box , name_box3, name_box4, name_box5
 
     name_box1 = DateEntry(new_win, background='grey', foreground='white', borderwidth=2)
     name_box1.grid(row=0, column=1,padx=9,pady=8)
+
     name_box2 = StringVar()
-    name_box2.set("CASH")
-    ttk.Combobox(new_win, values=["CARD", "PAYTM", "CHEQUE", "ONLINE TRANSACTION"]).grid(row=1, column=1,padx=9,pady=8)
+    combo_box = ttk.Combobox(new_win, values=["CARD", "PAYTM", "CHEQUE", "ONLINE TRANSACTION"])
+    combo_box.grid(row=1, column=1,padx=9,pady=8)
+    combo_box.set('CASH')
+
     name_box3 = Entry(new_win)
     name_box3.grid(row=2, column=1,padx=9,pady=8)
     name_box4 = Entry(new_win)
     name_box4.grid(row=3, column=1,padx=9,pady=8)
 
     name_box = DoubleVar()
-    #name_box.set("")
     name_box5 = Entry(new_win, textvariable=name_box)
     name_box5.grid(row=4, column=1,padx=9,pady=8)
-    global name_box5_value
-    name_box5_value = name_box.get()
 
     update_bt = Button(new_win, text="UPDATE RECORD", font=("Helvetica", 11), command=update1)
     update_bt.grid(row=6,column=0,columnspan=2,padx=8,pady=9)
@@ -184,38 +212,54 @@ def select_for_update():
     listv = []
     m = 0
     selection = my_tree.focus()    #retrieves ID of selected record...
+    name_box1.delete(0, END)
+    combo_box.delete(0, END)
+    name_box3.delete(0, END)
+    name_box4.delete(0, END)
+    name_box5.delete(0, END)
 
-    values = my_tree.item(selection, 'values')        #returns a tuple containing values of selected record
+    values = my_tree.item(selection, 'values')     #returns a tuple containing values of selected record
+    print("here printing values: ",values)
     if selection == "":
         messagebox.showwarning("Attention", "You must select atleast one record to perform this action")
     else:
-        for k in range(0, 5):
+        for k in range(1, 6):
             listv.append(values[k])
+        print("listv: ",listv)
 
         try:
-            name_box1.insert(0, values[0])
-            name_box2.set(values[1])
+            amount_paid_str = values[4]
+            amount_paid_float = float(amount_paid_str)
+            name_box1.insert(0, values[1])
+            combo_box.set(values[5])
             name_box3.insert(0, values[2])
             name_box4.insert(0, values[3])
             name_box5.insert(0, values[4])
+            global z
             z = 1
         except(IndexError):
             pass
 
     new_win.mainloop()
 
+
+
 #update function
 def update1():
-    global p
     global z
-    global listv
-
     m = 0
     selection = my_tree.focus()
 
-    if [name_box1.get(), name_box2.get(), name_box3.get(), name_box4.get(), name_box5.get()] == listv:
+    if [name_box1.get(), combo_box.get(), name_box3.get(), name_box4.get(), name_box5.get()] == listv:
         messagebox.showinfo("Attention", "Seems as if you didn't make any change to the existing record")
     else:
+        try:
+            global amount_paid_float
+            #amount_paid_str = name_box5.get()
+            #amount_paid_float = float(amount_paid_str)
+            amount_paid_float = float(name_box5.get())
+        except ValueError:
+            messagebox.showwarning("WARNING!", "Amount Paid must be a number\nPlease Check Again")
         if z == 1 and selection != "":
             z = 0
             try:
@@ -223,26 +267,33 @@ def update1():
                 dbcursor = dbconn.cursor()
                 selection = my_tree.focus()
                 values = my_tree.item(selection, text="", values=(name_box1.get(),
-                                                                name_box2.get(),
+                                                                combo_box.get(),
                                                                 name_box3.get(),
                                                                 name_box4.get(),
                                                                 name_box5.get()))
                 x = my_tree.selection()
+                print(x,end="this is x")
                 for record in x:
-                    dbcursor.execute("UPDATE expenses" +
-                                     "SET Date_Of_Payment = " + str(name_box1.get()) + ", Method_of_Payment = '"+str(name_box2.get())\
-                                     + "' , Paid_To = '"+ str(name_box3.get()) + \
-                                     "' , Description = '" + str(name_box4.get()) + \
-                                     "' , Amount_Paid = " + str(name_box5.get())\
-                    + " WHERE oid = " + str(ltt[(int(record) - 1)])+" ;")
+                    print(record)
+                    dbcursor.execute(
+                        "UPDATE expenses SET Date = ?, \
+                                                Payee = ?, \
+                                                Description = ?,\
+                                                Amount = ?,\
+                                                Mode_Of_Payment = ? \
+                                                WHERE oid = ?",
+                        (str(name_box1.get()), str(name_box3.get()),str(name_box4.get()), amount_paid_float,\
+                         str(combo_box.get()), str(ltt[(int(record) - 1)])))
+                    dbconn.commit()
+                    dbconn.close()
+                    new_win.destroy()
 
-            except(sqlite3.OperationalError):
-                messagebox.showwarning("WARNING!", "Amount Paid must be a number\nPlease Check Again")
+
+            except sqlite3.OperationalError as e:
+                messagebox.showwarning("WARNING!", f"Database error: {e}")
 
         else:
             messagebox.showwarning("Attention", "Seems You didn't select any record\nPlease Check Again")
-
-
 
 
 def view_expenses(view_record_frame):
@@ -253,17 +304,17 @@ def view_expenses(view_record_frame):
 
     #fetch all expenses record
     dbcursor.execute("SELECT * FROM expenses")
-    records = dbcursor.fetchall()
-    print(records)
+    records = dbcursor.fetchall()      #it will be list of tuples containing each row data...
+    #print(records)
 
     #fetch oids separately...
     dbcursor.execute("SELECT oid FROM expenses")
     rec = dbcursor.fetchall()
-    print(rec)
+    #print(rec)
 
     for r in rec:
         ltt.append(r[0])
-
+    print("this is ltt list:",ltt)
     style = ttk.Style()
     style.theme_use("clam")
     style.configure("Treeview", background="white", foreground="black", rowheight=40, fieldbackground="white")
@@ -278,23 +329,32 @@ def view_expenses(view_record_frame):
     my_tree.tag_configure("oddrow", background="WHITE")
     my_tree.tag_configure("evenrow", background="grey")
 
-    my_tree['columns'] = ('SNo','Date Of Payment', 'Payee', 'Description', 'Amount Paid(In Rupees)','Method Of Payment')
+    my_tree['columns'] = ('SNo','Date', 'Payee', 'Description', 'Amount','Mode_Of_Payment')
     my_tree.column("#0", width=0, anchor=W, minwidth=0, stretch=NO)
     my_tree.column("SNo", width=200, anchor=W, minwidth=25)
-    my_tree.column("Date Of Payment", width=200, anchor=W, minwidth=25)
+    my_tree.column("Date", width=200, anchor=W, minwidth=25)
     my_tree.column("Payee", width=200, anchor=W, minwidth=25)
     my_tree.column("Description", width=200, anchor=W, minwidth=50)
-    my_tree.column("Amount Paid(In Rupees)", width=200, anchor=W, minwidth=25)
-    my_tree.column("Method Of Payment", width=200, anchor=W, minwidth=25)
+    my_tree.column("Amount", width=200, anchor=W, minwidth=25)
+    my_tree.column("Mode_Of_Payment", width=200, anchor=W, minwidth=25)
 
     my_tree.heading("#0", text="Label", anchor=W)
     my_tree.heading("SNo", text="SNo", anchor=W)
-    my_tree.heading("Date Of Payment", text="Date Of Payment (MM/DD/YY)", anchor=W)
+    my_tree.heading("Date", text="Date Of Payment (MM/DD/YY)", anchor=W)
     my_tree.heading("Payee", text="Paid To", anchor=W)
     my_tree.heading("Description", text="Description", anchor=W)
-    my_tree.heading("Amount Paid(In Rupees)", text="Amount Paid(In Rs)", anchor=W)
-    my_tree.heading("Method Of Payment", text="Method Of Payment", anchor=W)
+    my_tree.heading("Amount", text="Amount Paid(In Rs)", anchor=W)
+    my_tree.heading("Mode_Of_Payment", text="Method Of Payment", anchor=W)
 
+    for index, record in enumerate(records, start=1):
+        if index % 2 == 0:
+            my_tree.insert(parent='', index='end', iid=index, text='Parent', values= record,tags=('evenrow',))
+        else:
+            my_tree.insert(parent='', index='end', iid=index, text='Parent', values= record, tags=('oddrow',))
+
+
+    """
+    
     p= 1
     for record in records:
         if p % 2 == 0:
@@ -302,54 +362,42 @@ def view_expenses(view_record_frame):
         else:
             my_tree.insert(parent='', index='end', iid = p, text='Parent', values=record, tags=('oddrow',))
         p += 1
+    
+    """
+
     my_tree.pack(padx=10, ipadx=50, ipady=20)
 
 
-    del_button = Button(view_record_frame,text="DELETE THE SELECTED RECORD",bg="black",font=("BOLD", 15),command=remove,foreground="white")
+    del_button = Button(view_record_frame,text="DELETE THE SELECTED RECORD",bg="black",\
+                        font=("BOLD", 15),command=remove,foreground="white")
     del_button.pack(padx=10,pady=20)
 
-    update_bt = Button(view_record_frame,text="UPDATE THE SELECTED RECORD",bg="black",font=("BOLD",13),command=select_for_update,foreground="white")
+    update_bt = Button(view_record_frame,text="UPDATE THE SELECTED RECORD",bg="black",\
+                       font=("BOLD",13),command=select_for_update,foreground="white")
     update_bt.pack(padx=10,pady=7)
-
-    '''
-    n1 = Label(new_win, text="Date Of Payment (MM/DD/YY)")
-    n1.grid(row=1,column=0)
-    n2 = Label(new_win, text="Method Of Payment")
-    n2.grid(row=1, column=1)
-    n3 = Label(new_win, text="Paid To")
-    n3.grid(row=1, column=2)
-    n4 = Label(new_win, text="Description")
-    n4.grid(row=1, column=3)
-    n5 = Label(new_win, text="Amount Paid")
-    n5.grid(row=1, column=4)
-
-    global name_box1
-    global name_box2
-    global name_box3
-    global name_box4
-    global name_box5
-    global name_box
-
-    name_box = IntVar()
-    name_box.set("")
-    name_box1 = DateEntry(view_record_frame,background='grey', foreground='white', borderwidth=2)
-    name_box1.grid(row=2, column=0)
-
-    name_box2 = StringVar()
-    name_box2.set("CASH")
-    ttk.Combobox(view_record_frame,values=["CARD","PAYTM", "CHEQUE", "ONLINE TRANSACTION"]).grid(row=2,column=1)
-    name_box3 = Entry(view_record_frame)
-    name_box3.grid(row=2, column=2)
-    name_box4 = Entry(view_record_frame)
-    name_box4.grid(row=2, column=3)
-    name_box5 = Entry(view_record_frame, textvariable=name_box)
-    name_box5.grid(row=2, column=4)
-    '''
 
     dbconn.commit()
     dbconn.close()
 
+'''
+def tables():
+    global list1
+    list1 = []
+    dbcursor.execute('SELECT name from sqlite_master where type = "table" ' )
+    dta = dbcursor.fetchall()
 
+    for a in dta:
+        s = a[0]
+        if s in list1:
+            pass
+        else:
+            list1.append(s)
+
+    print("list of tables: ",list1)
+
+def manage(manage_table_frame):
+    tables()
+'''
 
 #function get called on clicking track expense image on root window..
 def open_expense():
@@ -370,6 +418,12 @@ def open_expense():
     my_nb.add(view_record_frame, text="View Expenses")
     view_expenses(view_record_frame)
 
+    #global manage_table_frame
+    #manage_table_frame = Frame(my_nb)
+    #my_nb.add(manage_table_frame,text="Manage Tables")
+    #manage(manage_table_frame)
+
+
     Amount_Paid = DoubleVar()
     #extracting data from user for a new record(expense)...
     #entry boxes...
@@ -383,8 +437,9 @@ def open_expense():
     Paid_To_Entry.grid(row=3, column=1,padx=15,pady=7)
     global mode_of_payment
     mode_of_payment = ttk.Combobox(new_record_frame, values=["CASH","CARD","PAYTM","CHEQUE","ONLINE TRANSACTION"])
-    mode_of_payment.current(0)
-    mode_of_payment.grid(row=4, column=1,padx=14,pady=12)
+    mode_of_payment.grid(row=4, column=1, padx=14, pady=12)
+    mode_of_payment.set("CASH")
+
 
     #label corresponding to each entry box...
     date_of_payment_label = Label(new_record_frame,text="Date of Payment\n(MM\DD\YY)", font=("Times New Roman",11))
@@ -400,7 +455,7 @@ def open_expense():
 
 
     _list = [date_of_payment_entry, Description_Entry, Amount_Paid_Entry, Paid_To_Entry,mode_of_payment]
-    print(mode_of_payment.get())
+    #print(mode_of_payment.get())
 
     #creating button to add data to database..and calls function submit()...
     submit_btn=Button(new_record_frame, text="Add Expense", command=lambda: submit(_list),bg="light blue",relief=RAISED)
