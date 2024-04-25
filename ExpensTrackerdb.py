@@ -79,11 +79,9 @@ finally:
 
 frame1 = Frame(root, width=600, height=900)
 frame1.pack(side="left", expand=1, fill="both")
-# frame1.grid(row=0,column=0)
 
 frame2 = Frame(root, width=500, height=900, bg="black")
 frame2.pack(side="right", expand=1, fill="both")
-# frame2.grid(row=0,column=1)
 
 
 # added left image..on frame1
@@ -99,10 +97,27 @@ img2 = Label(frame2, image=my_pic2)
 img2.pack(pady=20)
 
 
-# img2.grid(row=0,column=0,sticky="n",pady=3)
+
+tot =0
+def calculate_exp():
+    dbconn = sqlite3.connect('Expense_Track.db')
+    dbcursor = dbconn.cursor()
+    global tot
+    tot = 0
+    dbcursor.execute("SELECT Amount FROM expenses")
+    amt = dbcursor.fetchall()  #list of tuples .Each tuple contains a single value, which is the amount from the "Amount" column.
+    for amount in amt:
+        tot += amount[0]
+
+    show_bal.config(text="Current Total Expense: Rupees " + str(tot))
+    #show_bal = Label(frame2, text="Current Total Expense : Rupees " + str(tot))
+    #show_bal.pack(pady=15)
+
+    dbconn.commit()
+    dbconn.close()
+
 
 def submit(_list):
-
     check = 0  # check if list does not contain any empty string..(if user has not entered any data)
     for i in _list:
         if i.get() == "":
@@ -284,7 +299,6 @@ def update1():
                 dbconn.close()
                 new_win.destroy()
 
-
             except sqlite3.OperationalError as e:
                 messagebox.showwarning("WARNING!", f"Database error: {e}")
 
@@ -294,7 +308,7 @@ def update1():
 
 def view_expenses(view_record_frame):
     global ltt
-    ltt = []
+    ltt = []     #stores the ids...
     dbconn = sqlite3.connect('Expense_Track.db')
     dbcursor = dbconn.cursor()
 
@@ -305,15 +319,15 @@ def view_expenses(view_record_frame):
 
     # fetch oids separately...
     dbcursor.execute("SELECT oid FROM expenses")
-    rec = dbcursor.fetchall()
-    # print(rec)
+    rec = dbcursor.fetchall()  #list of tuples containing oid [(1,).(2,)...]
+    print(rec)
 
-    for r in rec:
+    for r in rec:        #r is a tuple containg id...
         ltt.append(r[0])
     print("this is ltt list:", ltt)
     style = ttk.Style()
     style.theme_use("clam")
-    style.configure("Treeview", background="white", foreground="black", rowheight=40, fieldbackground="white")
+    style.configure("Treeview", background="white", foreground="black", rowheight=80, fieldbackground="white")
     style.map('Treeview', background=[('selected', 'green')])
 
     tree_scroll = Scrollbar(view_record_frame, orient=VERTICAL)
@@ -346,7 +360,7 @@ def view_expenses(view_record_frame):
         else:
             my_tree.insert(parent='', index='end', iid=index, text='Parent', values=record, tags=('oddrow',))
 
-    my_tree.pack(padx=10, ipadx=50, ipady=20)
+    my_tree.pack(padx=10, ipadx=50, ipady=55)
 
     del_button = Button(view_record_frame, text="DELETE THE SELECTED RECORD", bg="black", \
                         font=("BOLD", 15), command=remove, foreground="white")
@@ -363,7 +377,7 @@ def view_expenses(view_record_frame):
 # function get called on clicking track expense image on root window..
 def open_expense():
     global exp
-    exp = Tk()  # new window opens
+    exp = Tk()         # new window opens
     exp.geometry("500x500")
     exp.title("Track Expense")
 
@@ -409,6 +423,7 @@ def open_expense():
     mode_of_payment_label.grid(row=4, column=0, pady=21)
 
     _list = [date_of_payment_entry, Description_Entry, Amount_Paid_Entry, Paid_To_Entry, mode_of_payment]
+    #this list stores the name of entry boxes..from which data will be retrieved...
     # print(mode_of_payment.get())
 
     # creating button to add data to database..and calls function submit()...
@@ -426,6 +441,11 @@ track_lbl_img.pack(pady=50)
 track_lbl_img.bind("<Button-1>", lambda event: open_expense())  # click on left mouse button..
 text_lbl = Label(frame2, text="Click on above image..")
 text_lbl.pack()
+
+total_expense = Button(frame2,text="Current Total Expense",command=calculate_exp,borderwidth=10,background="lightblue")
+total_expense.pack(pady=27)
+show_bal = Label(frame2,text="Current Total Expense : Rupees " + str(tot),font=("Helvetica",11))
+show_bal.pack(pady=8)
 
 
 root.grid_rowconfigure(0, weight=2)
